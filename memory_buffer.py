@@ -11,32 +11,28 @@ class MemoryBuffer:
     Implementation of a transition memory buffer
     """
 
-    def __init__(self, max_memory_size, environment: Env, metadata: Optional[Dict] = None):
-
-        dim_state = environment.observation_space.shape[0]
-        dim_action = environment.action_space.shape[0]
-
-        self.shape_dtype_dict = dict(
-            state=(dim_state, np.float32),
-            action=(dim_action, np.float32),
-            reward=(1, np.float32),
-            next_state=(dim_state, np.float32),
-            termination_masks=(1, 'uint8')
-        )
-        metadata = {} if metadata is None else metadata
-        self.shape_dtype_dict.update(metadata)
+    def __init__(self, max_memory_size):
         self.max_memory_size = max_memory_size
-        self.statistics = self.shape_dtype_dict.keys()
 
-        self._memory_buffer = {
-            stat_name: np.zeros(shape=(max_memory_size, self.shape_dtype_dict[stat_name][0]),
-                                dtype=self.shape_dtype_dict[stat_name][1])
-            for stat_name in self.statistics
-        }
         self._top = 0  # Trailing index with latest entry in env
         self._size = 0  # Trailing index with num samplea
 
+    def create_memory_buffer(self, step: Step):
+        self.shape_dtype_dict = {
+            stat_name: (value.shape[-1], value.dtype)
+            for stat_name, value in step.asdict().items()
+        }
+        self.statistics = self.shape_dtype_dict.keys()
+
+        self._memory_buffer = {
+            stat_name: np.zeros(shape=(self.max_memory_size, self.shape_dtype_dict[stat_name][0]),
+                                dtype=self.shape_dtype_dict[stat_name][1])
+            for stat_name in self.statistics
+        }
+
     def add_step(self, step: Step):
+        if self._size == 0:
+            self.create_memory_buffer(step)
         error_msg = f"""Memory buffer and step have different statistics - step:{step.statistics}, 
                     buffer:{self.statistics}"""
         assert step.statistics == self.statistics, error_msg

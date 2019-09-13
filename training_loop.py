@@ -12,7 +12,8 @@ import matplotlib.pyplot as plt
 import numpy as np
 from gym.spaces import Dict
 
-from agent import RandomAgent
+from agent import RandomAgent, AgentSAC
+from config import BasicConfigSAC
 from learner import EmptyLearner
 from memory_buffer import MemoryBuffer, Trajectory
 from monitoring import Monitoring
@@ -25,7 +26,7 @@ import gym
 
 class TrainingLoopSAC:
     def __init__(self,
-                 config,
+                 config: BasicConfigSAC,
                  environment: Env,
                  log_path=None
                  ):
@@ -40,26 +41,10 @@ class TrainingLoopSAC:
         self.episode_horizon = config.episode_horizon
         self.steps_before_learn = config.steps_before_learn
 
-        self.agent = RandomAgent(environment)
+        # self.agent = RandomAgent(environment)
+        self.agent = AgentSAC(environment, config.policy)
 
-        # model = SimpleGaussianPolicyModel(
-        #     dim_state=dim_state,
-        #     num_hidden=self.config.num_hidden,
-        #     dim_action=dim_action,
-        #     learning_rate=learner_config.learning_rate_policy
-        # )
-        #
-        # self.policy = SimpleContinuousPolicy(model=model)
-
-        self.memory_buffer = MemoryBuffer(
-            max_memory_size=config.memory_size,
-            environment=environment,
-            metadata=dict(
-                log_pi=(1, np.float32),
-                returns=(1, np.float32),
-                entropy=(1, np.float32)
-            )
-        )
+        self.memory_buffer = MemoryBuffer(max_memory_size=config.memory_size)
         self.learner = EmptyLearner(
             config=config.learner,
             agent=self.agent,
@@ -103,15 +88,15 @@ class TrainingLoopSAC:
         next_observation, reward, done, info = self.env.step(action)
         # Append step to trajectory & add step to memory buffer
         step = trajectory.register_step(observation=observation,
-                                        action=action.numpy(),
+                                        action=action,
                                         reward=reward,
                                         next_observation=next_observation,
                                         action_metadata=action_metadata,
                                         done=done)
-        self.memory_buffer.add_step(step)
+        if self.agent.is_learning:
+            self.memory_buffer.add_step(step)
         self.total_steps += 1
-        # Handle terminal steps
-        start_new_traj = self.episode_horizon == len(trajectory) or done
+        start_new_traj = self.episode_horizon == len(trajectory) or done # Handle terminal steps
         if start_new_traj:
             observation, trajectory = self.handle_completed_trajectory(observation, trajectory)
         else:

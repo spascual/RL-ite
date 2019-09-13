@@ -1,9 +1,12 @@
 from dataclasses import dataclass
 from typing import Optional
 
+@dataclass
+class LearnerConfig:
+    pass
 
 @dataclass
-class BasicLearnerConfigSAC:
+class BasicLearnerConfigSAC(LearnerConfig):
     batch_size: Optional[int] = 256
     learning_rate_policy: Optional[float] = 3e-4
     learning_rate_Q: Optional[float] = 3e-4
@@ -18,6 +21,7 @@ class BasicPolicyConfigSAC:
     hidden_units: Optional[int] = 100
     hidden_layers: Optional[int] = 2
     activation: Optional[str] = 'relu'
+    transform_std = None
 
 
 @dataclass

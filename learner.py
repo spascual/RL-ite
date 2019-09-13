@@ -4,12 +4,9 @@ from typing import Optional
 from gym import Env
 import tensorflow as tf
 
-from agent import Agent
+from agent import Agent, AgentSAC
+from config import LearnerConfig, BasicLearnerConfigSAC
 from monitoring import Monitoring
-
-
-class LearnerConfig(object):
-    pass
 
 
 class Learner(tf.Module):
@@ -35,9 +32,20 @@ class Learner(tf.Module):
 
 class EmptyLearner(Learner):
     def __init__(self,
-                 config: LearnerConfig,
+                 config: BasicLearnerConfigSAC,
                  enviroment: Env,
                  agent: Agent):
+        super().__init__(config, enviroment, agent, monitoring=None)
+
+    def learn_from_batch(self, batch):
+        print('Agent is not learning')
+        pass
+
+class LearnerSAC(Learner):
+    def __init__(self,
+                 config: BasicLearnerConfigSAC,
+                 enviroment: Env,
+                 agent: AgentSAC):
         super().__init__(config, enviroment, agent, monitoring=None)
 
     def learn_from_batch(self, batch):
