@@ -18,6 +18,9 @@ class MemoryBuffer:
         self._size = 0  # Trailing index with num samplea
 
     def create_memory_buffer(self, step: Step):
+        """
+        Dynamically creates a memory buffer with the right size, shape and dtypes.
+        """
         self.shape_dtype_dict = {
             stat_name: (value.shape[-1], value.dtype)
             for stat_name, value in step.asdict().items()
