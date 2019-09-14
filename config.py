@@ -6,6 +6,10 @@ class LearnerConfig:
     pass
 
 @dataclass
+class PolicyConfig:
+    pass
+
+@dataclass
 class BasicLearnerConfigSAC(LearnerConfig):
     batch_size: Optional[int] = 256
     learning_rate_policy: Optional[float] = 3e-4
@@ -14,6 +18,14 @@ class BasicLearnerConfigSAC(LearnerConfig):
     tau_V: Optional[float] = 0.005
     discount_factor: Optional[float] = 0.99
     alpha: Optional[float] = 50.0
+    # Twin Q-value network config
+    Qhidden_units: Optional[int] = 100
+    Qhidden_layers: Optional[int] = 2
+    Qactivation: Optional[str] = 'relu'
+    # V-value and target network config
+    Vhidden_units: Optional[int] = 100
+    Vhidden_layers: Optional[int] = 2
+    Vactivation: Optional[str] = 'relu'
 
 
 @dataclass

@@ -8,4 +8,4 @@ if __name__ == '__main__':
     print(config)
     environment = box2d.BipedalWalker()
     sac = TrainingLoopSAC(config, environment, log_path=None)
-    sac.train(num_epochs=4, steps_per_epoch=100)
+    sac.train(num_epochs=50, steps_per_epoch=100)

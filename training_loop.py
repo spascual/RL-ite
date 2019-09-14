@@ -14,7 +14,7 @@ from gym.spaces import Dict
 
 from agent import RandomAgent, AgentSAC
 from config import BasicConfigSAC
-from learner import EmptyLearner
+from learner import EmptyLearner, LearnerSAC
 from memory_buffer import MemoryBuffer, Trajectory
 from monitoring import Monitoring
 from utils import Observation
@@ -41,22 +41,22 @@ class TrainingLoopSAC:
         self.episode_horizon = config.episode_horizon
         self.steps_before_learn = config.steps_before_learn
 
+        self.memory_buffer = MemoryBuffer(max_memory_size=config.memory_size)
+
         # self.agent = RandomAgent(environment)
+        # self.learner = EmptyLearner(
+        #     config=config.learner,
+        #     agent=self.agent,
+        #     enviroment=self.env
+        # )
+
         self.agent = AgentSAC(environment, config.policy)
 
-        self.memory_buffer = MemoryBuffer(max_memory_size=config.memory_size)
-        self.learner = EmptyLearner(
+        self.learner = LearnerSAC(
             config=config.learner,
             agent=self.agent,
             enviroment=self.env
         )
-
-        # self.learner = SACLearner(
-        #     policy=self.policy,
-        #     config=learner_config,
-        #     log_path=self.log_path,
-        #     monitor=self.monitor
-        # )
 
     def train(self,
               num_epochs: int = 30,
@@ -96,7 +96,7 @@ class TrainingLoopSAC:
         if self.agent.is_learning:
             self.memory_buffer.add_step(step)
         self.total_steps += 1
-        start_new_traj = self.episode_horizon == len(trajectory) or done # Handle terminal steps
+        start_new_traj = self.episode_horizon == len(trajectory) or done  # Handle terminal steps
         if start_new_traj:
             observation, trajectory = self.handle_completed_trajectory(observation, trajectory)
         else:
@@ -106,15 +106,16 @@ class TrainingLoopSAC:
     def handle_completed_trajectory(self,
                                     observation: Observation,
                                     trajectory: Trajectory) -> Tuple[Observation, Trajectory]:
-        self.episodes += 1
         if len(trajectory) > 0:
+            self.episodes += 1
             # Collect returns and sum entropies for monitoring
             returns, entropy = trajectory.trajectory_returns, trajectory.trajectory_entropy
             self.epoch_trajectory_history.append(trajectory)
 
-        #### MONITOR DATA
-        # print('Reward in trajectory #{2}/{3}: {0} in {1} steps'.format(
-        #     returns, len(trajectory), env_id, environment.eposide_count))
+            # logging
+            rewards_msg = f"""Traj #{self.episodes}, Returns {trajectory.trajectory_returns[0][0]} 
+            Steps: {len(trajectory)}"""
+            print(rewards_msg)
         # self.monitor.record_data(environment.eposide_count, 'reward_' + str(env_id),
         #                          returns, 'scalar')
         # self.monitor.record_data(environment.eposide_count, 'entropy_' + str(env_id),
