@@ -134,8 +134,8 @@ class VNetworkSAC(tf.Module):
         self._vnet, self._targetnet = self.create_models(config)
 
     def create_models(self, config: BasicLearnerConfigSAC) -> Tuple[keras.Model, keras.Model]:
-        model_1= self.create_single_model(config)
-        model_2= self.create_single_model(config)
+        model_1 = self.create_single_model(config)
+        model_2 = self.create_single_model(config)
         return model_1, model_2
 
     def create_single_model(self, config: BasicLearnerConfigSAC) -> keras.Model:
@@ -167,5 +167,5 @@ class VNetworkSAC(tf.Module):
         for target_var, var in zip(self._targetnet.trainable_variables,
                                    self._vnet.trainable_variables):
             target_var.assign(
-                target_var.numpy() * (1 - self.tau) + var.numpy() * self.tau
+                target_var * (1. - self.tau) + var * self.tau
             )

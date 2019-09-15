@@ -12,12 +12,12 @@ class PolicyConfig:
 @dataclass
 class BasicLearnerConfigSAC(LearnerConfig):
     batch_size: Optional[int] = 256
-    learning_rate_policy: Optional[float] = 3e-4
-    learning_rate_Q: Optional[float] = 3e-4
-    learning_rate_V: Optional[float] = 3e-4
+    learning_rate_policy: Optional[float] = 1e-3
+    learning_rate_Q: Optional[float] = 1e-3
+    learning_rate_V: Optional[float] = 1e-3
     tau_V: Optional[float] = 0.005
     discount_factor: Optional[float] = 0.99
-    alpha: Optional[float] = 10.0
+    alpha: Optional[float] = 50.
     # Twin Q-value network config
     Qhidden_units: Optional[int] = 128
     Qhidden_layers: Optional[int] = 2
@@ -40,6 +40,6 @@ class BasicPolicyConfigSAC:
 class BasicConfigSAC:
     learner: BasicLearnerConfigSAC = BasicLearnerConfigSAC()
     policy: BasicPolicyConfigSAC = BasicPolicyConfigSAC()
-    episode_horizon: Optional[int] = 200
+    episode_horizon: Optional[int] = 1000
     steps_before_learn: Optional[int] = 10
     memory_size: Optional[int] = int(3e6)
