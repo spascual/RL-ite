@@ -28,7 +28,7 @@ class TrainingLoopSAC:
     def __init__(self,
                  config: BasicConfigSAC,
                  environment: Env,
-                 log_path=None
+                 log_path: str = '/tmp/rl-ite/learner-5'
                  ):
         """
         TODO: Write docstring
@@ -55,7 +55,8 @@ class TrainingLoopSAC:
         self.learner = LearnerSAC(
             config=config.learner,
             agent=self.agent,
-            enviroment=self.env
+            enviroment=self.env,
+            monitoring=self.monitoring
         )
 
     def train(self,
@@ -68,14 +69,16 @@ class TrainingLoopSAC:
         self.total_steps, self.learning_steps, self.episodes = 0, 0, 0
 
         observation, trajectory = self.reset_environment()
-        for epoch in range(num_epochs):
-            self.epoch_start_callback()
-            for step in range(steps_per_epoch):
-                observation, trajectory = self.register_agent_step(observation, trajectory)
-                if step % step_per_learning_step == 0 and self.agent.is_learning:
-                    self.learning_step(grad_updates_per_learning_step)
-                    self.learning_steps += 1
-            self.epoch_end_callback(steps_per_epoch)
+
+        with self.monitoring.summary_writter.as_default():
+            for epoch in range(num_epochs):
+                self.epoch_start_callback()
+                for step in range(steps_per_epoch):
+                    observation, trajectory = self.register_agent_step(observation, trajectory)
+                    if step % step_per_learning_step == 0 and self.agent.is_learning:
+                        self.learning_step(grad_updates_per_learning_step)
+                        self.learning_steps += 1
+                self.epoch_end_callback(steps_per_epoch)
 
         # plt.show(block=False)
         # plt.pause(20)
@@ -110,6 +113,7 @@ class TrainingLoopSAC:
             self.episodes += 1
             # Collect returns and sum entropies for monitoring
             returns, entropy = trajectory.trajectory_returns, trajectory.trajectory_entropy
+            tf.summary.scalar('returns', returns[0][0], step=self.episodes)
             self.epoch_trajectory_history.append(trajectory)
 
             # logging

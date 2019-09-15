@@ -60,6 +60,7 @@ class LearnerSAC(Learner):
                  monitoring: Optional[Monitoring] = None):
         super().__init__(config, enviroment, agent, monitoring)
         self.policy = agent.policy
+        self.monitoring = monitoring
 
         self.gamma = config.discount_factor
         self.q_nets = QNetworkSAC(enviroment, config)
@@ -97,47 +98,27 @@ class LearnerSAC(Learner):
         vnet.fit(state, tf.cast(v_hat, tf.float32),
                  verbose=0, epochs=1, steps_per_epoch=1)
 
-        @tf.function
-        def policy_closure():
-            action_hat, metadata = self.policy.sample_action(state, include_metadata=True)
-            mean_hat, std_hat = metadata['mean'], metadata['std']
-            log_pi_hat = metadata['log_pi']
-            # Loss for policy network using reparametrisation trick
-            loss_policy = tf.reduce_mean(log_pi_hat - q_values_hat)
-            loss_policy += 1e-3 * tf.reduce_mean(mean_hat ** 2)
-            loss_policy += 1e-3 * tf.reduce_mean(tf.math.log(std_hat) ** 2)
-            return loss_policy
+        tf.summary.scalar('std', tf.reduce_mean(metadata['std']), step=self.learning_step)
 
         with tf.GradientTape() as tape:
-            loss_policy = policy_closure()
-            grads = tape.gradient(loss_policy, self.policy.trainable_variables)
+            loss_policy = self.policy_closure(state)
+        grads = tape.gradient(loss_policy, self.policy.trainable_variables)
         self.policy_opt.apply_gradients(zip(grads, self.policy.trainable_variables))
         self.v_nets.update_target()
 
+    @tf.function
+    def policy_closure(self, state):
+        action_hat, metadata = self.policy.sample_action(state, include_metadata=True)
+        mean_hat, std_hat = metadata['mean'], metadata['std']
+        log_pi_hat = metadata['log_pi']
 
-        #
-        # # Updates
-        # if self.training_iteration % 50 == 0:
-        #     shared_parameters = self.policy.model.parameters()
-        #     theta = torch.cat([param.data.flatten() for param in shared_parameters])
-        #     theta_min_max = [theta.min(), theta.max()]
-        #     psi = torch.cat([param.data.flatten() for param in V_network.parameters()])
-        #     psi_min_max = [psi.mean(), psi.mean() + 2 * psi.std(), psi.mean() - 2 * psi.std()]
-        #     std_min_max = [std.min(), std.max()]
-        #     self.monitor.record_data(self.training_iteration, 'reward',
-        #                              (rewards / self.alpha).mean(),
-        #                              'scalar')
-        #     self.monitor.record_data(self.training_iteration, 'loss_policy', loss_policy, 'scalar')
-        #     self.monitor.record_data(self.training_iteration, 'loss_Q', [loss_Q_0, loss_Q_1],
-        #                              'vector')
-        #     self.monitor.record_data(self.training_iteration, 'loss_V', loss_V, 'scalar')
-        #     self.monitor.record_data(self.training_iteration, 'pi_param', theta_min_max, 'vector')
-        #     self.monitor.record_data(self.training_iteration, 'V_param', psi_min_max, 'vector')
-        #     self.monitor.record_data(self.training_iteration, 'std', std_min_max, 'vector')
-        #
-        # if self.training_iteration % 1000 == 0:
-        #     # self.monitor.show_progress()
-        #     self.save_results()
-        #     self.policy.save_policy(self.save_path)
-        #     pass
+        state_action_pair_hat = tf.concat([state, action_hat], axis=-1)
 
+        q_values_hat = self.q_nets(state_action_pair_hat)
+
+        # Loss for policy network using reparametrisation trick
+        loss_policy = tf.reduce_mean(log_pi_hat - q_values_hat)
+        loss_policy += 1e-3 * tf.reduce_mean(mean_hat ** 2)
+        loss_policy += 1e-3 * tf.reduce_mean(tf.math.log(std_hat) ** 2)
+        tf.summary.scalar('loss_pi', loss_policy, step=self.learning_step)
+        return loss_policy
