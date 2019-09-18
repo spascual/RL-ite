@@ -1,40 +1,32 @@
+import random
 from typing import Tuple
 
-import tensorflow as tf
 from gym import Env
 
-from gym.envs import box2d
-
-import random
-import time
-
-import matplotlib.pyplot as plt
-import numpy as np
-from gym.spaces import Dict
-
-from agent import RandomAgent, AgentSAC
+from agent import AgentSAC
 from config import BasicConfigSAC
-from learner import EmptyLearner, LearnerSAC
+from learner import LearnerSAC
 from memory_buffer import MemoryBuffer, Trajectory
-from monitoring import Monitoring
-from utils import Observation
+from monitor import Monitor
+from utils import Observation, generate_experiment_signature
 
 random.seed(42)
-
-import gym
-
 
 class TrainingLoopSAC:
     def __init__(self,
                  config: BasicConfigSAC,
                  environment: Env,
-                 log_path: str = '/tmp/rl-ite/learner-5'
+                 log_path: str = None,
+                 logging: bool = True
                  ):
         """
         TODO: Write docstring
         """
+        log_path = generate_experiment_signature(environment) if log_path is None else log_path
         self.config = config
-        self.monitoring = Monitoring(log_path)
+        self.monitor = Monitor(log_path,
+                               config,
+                               logging=logging)
         self.env = environment
 
         self.batch_size = config.learner.batch_size
@@ -43,20 +35,13 @@ class TrainingLoopSAC:
 
         self.memory_buffer = MemoryBuffer(max_memory_size=config.memory_size)
 
-        # self.agent = RandomAgent(environment)
-        # self.learner = EmptyLearner(
-        #     config=config.learner,
-        #     agent=self.agent,
-        #     enviroment=self.env
-        # )
-
         self.agent = AgentSAC(environment, config.policy)
 
         self.learner = LearnerSAC(
             config=config.learner,
             agent=self.agent,
             enviroment=self.env,
-            monitoring=self.monitoring
+            monitor=self.monitor
         )
 
     def train(self,
@@ -70,19 +55,15 @@ class TrainingLoopSAC:
 
         observation, trajectory = self.reset_environment()
 
-        with self.monitoring.summary_writter.as_default():
+        with self.monitor.summary_writter.as_default():
             for epoch in range(num_epochs):
-                self.epoch_start_callback()
+                self.monitor.epoch_start_callback()
                 for step in range(steps_per_epoch):
                     observation, trajectory = self.register_agent_step(observation, trajectory)
                     if step % step_per_learning_step == 0 and self.agent.is_learning:
                         self.learning_step(grad_updates_per_learning_step)
                         self.learning_steps += 1
-                self.epoch_end_callback(steps_per_epoch)
-
-        # plt.show(block=False)
-        # plt.pause(20)
-        # plt.close()
+                self.monitor.epoch_end_callback(steps_per_epoch)
 
     def register_agent_step(self,
                             observation: Observation,
@@ -98,34 +79,19 @@ class TrainingLoopSAC:
                                         done=done)
         if self.agent.is_learning:
             self.memory_buffer.add_step(step)
-        self.total_steps += 1
         start_new_traj = self.episode_horizon == len(trajectory) or done  # Handle terminal steps
         if start_new_traj:
-            observation, trajectory = self.handle_completed_trajectory(observation, trajectory)
+            observation, trajectory = self.handle_completed_trajectory(trajectory)
         else:
             observation = next_observation
+        self.total_steps += 1
         return observation, trajectory
 
     def handle_completed_trajectory(self,
-                                    observation: Observation,
                                     trajectory: Trajectory) -> Tuple[Observation, Trajectory]:
         if len(trajectory) > 0:
+            self.monitor.trajectory_completed_callback(trajectory)
             self.episodes += 1
-            # Collect returns and sum entropies for monitoring
-            returns, entropy = trajectory.trajectory_returns, trajectory.trajectory_entropy
-            tf.summary.scalar('returns', returns[0][0], step=self.episodes)
-            self.epoch_trajectory_history.append(trajectory)
-
-            # logging
-            rewards_msg = f"""Traj #{self.episodes}, Returns {trajectory.trajectory_returns[0][0]} 
-            Steps: {len(trajectory)}"""
-            print(rewards_msg)
-        # self.monitor.record_data(environment.eposide_count, 'reward_' + str(env_id),
-        #                          returns, 'scalar')
-        # self.monitor.record_data(environment.eposide_count, 'entropy_' + str(env_id),
-        #                          entropy, 'scalar')
-        # Save completed trajectory and initialise next trajectory
-
         return self.reset_environment()
 
     def reset_environment(self) -> Tuple[Observation, Trajectory]:
@@ -139,12 +105,3 @@ class TrainingLoopSAC:
             for _ in range(grad_updates_per_learning_step):
                 batch = self.memory_buffer.sample_batch_transitions(self.batch_size)
                 self.learner.learn_from_batch(batch)
-
-    def epoch_start_callback(self):
-        self.epoch_start_time = time.time()
-        self.epoch_trajectory_history = []
-
-    def epoch_end_callback(self, steps_per_epoch):
-        epoch_length = time.time() - self.epoch_start_time
-        time_elapsed = f'Time required for {steps_per_epoch} steps: {epoch_length}'
-        print(time_elapsed)

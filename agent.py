@@ -1,8 +1,8 @@
 from abc import abstractmethod
 from typing import Tuple, Dict
 
-import tensorflow as tf
 import numpy as np
+import tensorflow as tf
 from gym import Env
 
 from config import BasicPolicyConfigSAC
@@ -14,6 +14,7 @@ class Agent(tf.Module):
     """
     Base class for an decision-making agent.
     """
+
     def __init__(self, environment, **kwargs):
         super().__init__()
         self.environment = environment
@@ -60,4 +61,3 @@ class AgentSAC(Agent):
         action, metadata = self.policy(state, is_learning=self.is_learning)
         action = action.numpy().reshape(-1)
         return action, metadata_to_numpy(metadata)
-

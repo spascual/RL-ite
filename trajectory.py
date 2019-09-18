@@ -6,7 +6,6 @@ import numpy as np
 from utils import Observation, Action, Reward
 
 
-
 class Trajectory:
     """List of steps recording Agent-Environment interactions over an episode"""
 
@@ -14,7 +13,6 @@ class Trajectory:
         self.step_count = 0
         self.trajectory_returns: np.ndarray = np.zeros((1, 1), np.float32)
         self.trajectory_entropy: np.ndarray = np.zeros((1, 1), np.float32)
-
 
     def initialize_records(self, step: 'Step'):
         self._step_statistics = step.statistics

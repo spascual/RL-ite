@@ -1,13 +1,16 @@
 from dataclasses import dataclass
-from typing import Optional
+from typing import Optional, Tuple
+
 
 @dataclass
 class LearnerConfig:
     pass
 
+
 @dataclass
 class PolicyConfig:
     pass
+
 
 @dataclass
 class BasicLearnerConfigSAC(LearnerConfig):
@@ -19,19 +22,16 @@ class BasicLearnerConfigSAC(LearnerConfig):
     discount_factor: Optional[float] = 0.99
     alpha: Optional[float] = 50.
     # Twin Q-value network config
-    Qhidden_units: Optional[int] = 128
-    Qhidden_layers: Optional[int] = 2
+    Qhidden_units: Optional[Tuple[int]] = (128, 64)
     Qactivation: Optional[str] = 'relu'
     # V-value and target network config
-    Vhidden_units: Optional[int] = 128
-    Vhidden_layers: Optional[int] = 2
+    Vhidden_units: Optional[Tuple[int]] = (128, 64)
     Vactivation: Optional[str] = 'relu'
 
 
 @dataclass
 class BasicPolicyConfigSAC:
-    hidden_units: Optional[int] = 128
-    hidden_layers: Optional[int] = 2
+    hidden_units: Optional[Tuple[int]] = (128, 64)
     activation: Optional[str] = 'relu'
     transform_std = None
 

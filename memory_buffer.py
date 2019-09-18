@@ -1,7 +1,4 @@
-from typing import Dict, Optional
-
 import numpy as np
-from gym import Env
 
 from trajectory import Step, Trajectory
 

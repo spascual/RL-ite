@@ -1,14 +1,12 @@
-from copy import deepcopy
 from typing import Tuple
 
-import numpy as np
 import tensorflow as tf
-from tensorflow import keras
 import tensorflow_probability as tfp
 from gym import Env
+from tensorflow import keras
 
 from config import BasicPolicyConfigSAC, BasicLearnerConfigSAC
-from utils import Action, State, log_probability_gaussian, StateAction
+from utils import State, log_probability_gaussian, StateAction
 
 LOG_STD_MIN = -20
 LOG_STD_MAX = 2
@@ -28,8 +26,8 @@ class GaussianPolicy(tf.Module):
     def create_model(self, config: BasicPolicyConfigSAC) -> keras.Model:
         input_state = keras.Input(shape=(self.dim_state,), name='state')
         layers = [
-            keras.layers.Dense(config.hidden_units, activation=config.activation)
-            for _ in range(config.hidden_layers)
+            keras.layers.Dense(layer_units, activation=config.activation)
+            for layer_units in config.hidden_units
         ]
         policy_block = keras.Sequential(layers)(input_state)
         mean = keras.layers.Dense(self.dim_action)(policy_block)
@@ -85,7 +83,7 @@ class QNetworkSAC(tf.Module):
         dim_action = environment.action_space.shape[0]
         self.dim_input = dim_state + dim_action
 
-        self._qnet_1, self._qnet_2 = self.create_models(config)
+        self._nets = self.create_models(config)
 
     def create_models(self, config: BasicLearnerConfigSAC) -> Tuple[keras.Model, keras.Model]:
         model_1 = self.create_single_model(config)
@@ -95,8 +93,8 @@ class QNetworkSAC(tf.Module):
     def create_single_model(self, config: BasicLearnerConfigSAC) -> keras.Model:
         input_state = keras.Input(shape=(self.dim_input,), name='state')
         layers = [
-            keras.layers.Dense(config.Qhidden_units, activation=config.Qactivation)
-            for _ in range(config.Qhidden_layers)
+            keras.layers.Dense(layer_units, activation=config.Qactivation)
+            for layer_units in config.Qhidden_units
         ]
         block = keras.Sequential(layers)(input_state)
         output = keras.layers.Dense(1)(block)
@@ -109,16 +107,11 @@ class QNetworkSAC(tf.Module):
         )
         return model
 
-    @property
-    def qnet_1(self):
-        return self._qnet_1
-
-    @property
-    def qnet_2(self):
-        return self._qnet_2
-
     def __call__(self, state_action: StateAction) -> tf.Tensor:
-        return tf.minimum(self._qnet_1(state_action), self._qnet_2(state_action))
+        return tf.minimum(self._nets[0](state_action), self._nets[1](state_action))
+
+    def __getitem__(self, item):
+        return self._nets[item]
 
 
 class VNetworkSAC(tf.Module):
@@ -141,8 +134,8 @@ class VNetworkSAC(tf.Module):
     def create_single_model(self, config: BasicLearnerConfigSAC) -> keras.Model:
         input_state = keras.Input(shape=(self.dim_input,), name='state')
         layers = [
-            keras.layers.Dense(config.Vhidden_units, activation=config.Vactivation)
-            for _ in range(config.Vhidden_layers)
+            keras.layers.Dense(layer_units, activation=config.Vactivation)
+            for layer_units in config.Vhidden_units
         ]
         block = keras.Sequential(layers)(input_state)
         output = keras.layers.Dense(1)(block)
